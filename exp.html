@@ -538,6 +538,20 @@
       },
     };
 
+
+    // instructions for ranking task
+    var rankInstructions = {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: `
+      <p> For the second part of the experiment, you are asked to rank the following headlines in terms of how much information you feel they contain. </p>
+      <p> These headlines are different versions from the ones you have already seen, so please make sure to read them carefully. </p>
+      <p> <strong> Drag the headlines, putting those with the most information at the top (1), and those with the least information at the bottom (18). </strong> </p>
+      <p> Only consider the information in the headlines, not how informative you think the article will be. </p>
+      <p> Press any key to begin. </p>
+      `,
+      post_trial_gap: 500,
+    };
+    
     var rankTrial = {
       type: jsPsychSurvey,
       data: { task: 'P2-rank' },
