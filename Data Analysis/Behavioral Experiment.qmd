@@ -1,0 +1,131 @@
+---
+title: "Behavioral Experiment"
+---
+
+```{r}
+#\| label: Load libraries.
+#\| echo: false
+#\| include: false
+
+library(osfr)
+library(jsonlite)
+library(readr)
+library(tidyverse)
+library(ggplot2)
+library(ez)
+```
+
+```{r}
+
+pilot.all <- read_csv('data/all_pilot_data.csv')
+
+  
+cleaned.pilot <- pilot.all[7:9,] %>%
+   pivot_longer(
+     cols = -1,
+     names_to = "headline",
+     values_to = "value") %>%
+  pivot_wider(
+    names_from = 1,
+    values_from = value
+  ) %>%
+  mutate(category = case_when(story_id < 7 ~ "n",
+                              story_id > 12 ~ "t",
+                              .default = "a"))
+
+ggplot(cleaned.pilot, aes(x = story_id, y = avg_rank, color = category, shape = factor(info_level))) +
+  geom_point() +
+  scale_y_reverse() +
+  scale_shape_manual(values=c(16, 15, 17))
+
+```
+
+```{r}
+#| label: Intake of all the data files.
+
+# Importing the folder and pulling all the data.
+all.files <- list.files("real_data", full.names = TRUE)
+all.data <- lapply(all.files, fromJSON) %>% # Reading all the files in the folder.
+  bind_rows() %>%                           # Sticking the dataframes together.
+  group_by(subject_id) %>%
+  mutate(subject = cur_group_id()) %>%
+  filter(trial_type == "html-button-response" | trial_type == "survey") %>%
+  mutate(phase = replace_na(phase, 2), .keep = "unused") %>%
+  select(-c(session_id, subject_id, stimulus, internal_node_id))
+
+
+# Pulling out any subjects who took less than 2 minutes.
+speedy_subjects <- all.data %>%
+  filter(phase == 2 & time_elapsed < 120000)
+
+
+# Calculating average for ALL subjects (including speedies)
+avg_time_allsubjs <- (all.data) %>%
+  filter(phase == 2) %>%
+  pull(time_elapsed) %>%
+  mean() / 1000 / 60
+
+
+# We want a graph to see how long people took. Red is exclusion zone.
+all.data %>%
+  mutate(t_min = time_elapsed / 1000 / 60) %>%
+  filter(phase == 2) %>%
+  ggplot(aes(x = subject, y = t_min)) +
+    geom_area(aes(y = 2, alpha = 0.5, fill = "red")) +
+    geom_hline(yintercept = 2) +
+    geom_hline(yintercept = avg_time_allsubjs, linetype = "dashed") +
+    geom_point()
+
+
+# The data with Speedy Subjects excluded.
+valid.data <- all.data %>%
+  filter(!subject %in% speedy_subjects$subject)
+  
+
+```
+
+```{r}
+#| label: Testing Phase I Data Processing
+
+# s1.rawJSON <- fromJSON('data/FIRST-SUBJECT.json')
+
+choice.P1 <- valid.data %>%
+  filter(phase == 1) %>%
+  unnest(options) %>%
+  rename("headline_options" = "headline")
+
+story.tally
+
+
+```
+
+
+```{r}
+#| label: Testing Phase II Data Processing w/ JSON file this time...
+
+headlines.key <- read_csv('data/headlines-conglomerate.csv')
+
+ranking.P2 <- all.data %>%
+  filter(task == "P2-rank") %>%
+  unnest(response) %>%
+  unnest(response) %>%
+  mutate(rank = 1:18)
+
+storied.hls <- merge(headlines.key, ranking.P2, by.x = "headline", by.y = "response") %>%
+  select(-trial_type, -accuracy, -article_link)
+
+rank.check <- storied.hls %>%
+  select(-rt, -trial_index, -time_elapsed) %>%
+  group_by(headline, story_id, info_level, category) %>%
+  summarize(avg_rank = mean(rank))
+
+ggplot(rank.check, aes(x = story_id, y = avg_rank, color = category, shape = factor(info_level))) +
+  annotate("rect", xmin = 1.6, xmax = 2.4, ymin = -Inf, ymax = Inf, fill = "tomato", alpha = 0.4) +
+  annotate("rect", xmin = 6.6, xmax = 7.4, ymin = -Inf, ymax = Inf, fill = "tomato", alpha = 0.4) +
+  annotate("rect", xmin = 8.6, xmax = 9.4, ymin = -Inf, ymax = Inf, fill = "tomato", alpha = 0.4) +
+  geom_point() +
+  scale_y_reverse() +
+  scale_color_manual(values=c("darkorchid", "deepskyblue2", "darkorange")) +
+  scale_shape_manual(values=c(16, 15, 17))
+
+```
