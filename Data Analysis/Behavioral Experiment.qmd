@@ -18,6 +18,7 @@ library(ez)
 ```{r}
 
 pilot.all <- read_csv('data/all_pilot_data.csv')
+headlines.key <- read_csv('data/headlines-conglomerate.csv')
 
   
 cleaned.pilot <- pilot.all[7:9,] %>%
@@ -94,7 +95,20 @@ choice.P1 <- valid.data %>%
   unnest(options) %>%
   rename("headline_options" = "headline")
 
-story.tally
+story.tally <- choice.P1 %>%
+  filter(headline_options == chosen_headline) %>%
+  group_by(chosen_headline) %>%
+  summarize(n())
+
+story.tally <- merge(headlines.key, story.tally, by.x = "headline", by.y = "chosen_headline", all.x = TRUE) %>%
+  select(-article_link) %>%
+  arrange(story_id, info_level) %>%
+  rename(times_chosen = `n()`)
+
+ggplot(story.tally, aes(x = story_id, y = times_chosen, fill = factor(story_id))) +
+  geom_col(position = "dodge2")
+
+  
 
 
 ```
